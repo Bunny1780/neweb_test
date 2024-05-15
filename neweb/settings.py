@@ -77,6 +77,16 @@ DATABASES = {
     }
 }
 
+ENCRYPTION_KEY = {
+    'MERCHANT_ID': os.getenv('MerchantID'),
+    'HASH_KEY': os.getenv('HASHKEY'),
+    'HASH_IV': os.getenv('HASHIV'),
+    'VERSION': os.getenv('Version'),
+    'RETURN_URL': os.getenv('ReturnUrl'),
+    'NOTIFY_URL': os.getenv('NotifyUrl'),
+    'PAY_GATEWAY': os.getenv('PayGateWay'),
+    'RESPOND_TYPE': os.getenv('RespondType'),
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -120,15 +130,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 ALLOWED_HOSTS = ['127.0.0.1', 'a882-61-220-182-115.ngrok-free.app']
-ENCRYPTION_KEY = {
-    'MERCHANT_ID': os.getenv('MerchantID'),
-    'HASH_KEY': os.getenv('HASHKEY'),
-    'HASH_IV': os.getenv('HASHIV'),
-    'VERSION': os.getenv('Version'),
-    'RETURN_URL': os.getenv('ReturnUrl'),
-    'NOTIFY_URL': os.getenv('NotifyUrl'),
-    'PAY_GATEWAY': os.getenv('PayGateWay'),
-}
+
 
 CORS_ALLOWED_ORIGINS = [
     "https://a882-61-220-182-115.ngrok-free.app"

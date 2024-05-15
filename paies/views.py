@@ -7,20 +7,27 @@ from cryptography.hazmat.backends import default_backend
 import hashlib
 from cryptography.hazmat.primitives import padding
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 
 # 這些變數是敏感資訊，最好從環境變數中讀取，而不是直接寫在程式碼中
 # 在真實應用中，請確保安全地存儲和管理這些敏感資訊
-MerchantID = 'MS152422619'
-HASHKEY = 'qKiwUe90Wn2I4Ug1cvjl44lJsTGCeLtD'
-HASHIV = 'CF4Ju2Dj3L4s8TIP'
-Version = '2.0'
-ReturnUrl = 'https://a882-61-220-182-115.ngrok-free.app/newebpays_return'
-NotifyUrl = 'https://a882-61-220-182-115.ngrok-free.app/newebpays_return'
-PayGateWay = 'https://ccore.newebpay.com/EPG/diswork/PTgOd2'
-RespondType = 'json'
+MerchantID = settings.ENCRYPTION_KEY['MERCHANT_ID']
+HASHKEY = settings.ENCRYPTION_KEY['HASH_KEY']
+HASHIV = settings.ENCRYPTION_KEY['HASH_IV']
+Version = settings.ENCRYPTION_KEY['VERSION']
+ReturnUrl = settings.ENCRYPTION_KEY['RETURN_URL']
+NotifyUrl = settings.ENCRYPTION_KEY['NOTIFY_URL']
+PayGateWay = settings.ENCRYPTION_KEY['PAY_GATEWAY']
+RespondType = settings.ENCRYPTION_KEY['RESPOND_TYPE']
 
 orders = {}
-
+# print('MerchantID: ', MerchantID)
+# print('HASHKEY: ', HASHKEY)
+# print('HASHIV: ', HASHIV)
+# print('Version: ', Version)
+# print('ReturnUrl: ', ReturnUrl)
+# print('NotifyUrl: ', NotifyUrl)
+# print('PayGateWay: ', PayGateWay)
 def index(request):
     return render(request, 'index.html', {'title': 'Express'})
 
@@ -33,29 +40,39 @@ def create_order(request):
         timestamp = timezone.now().timestamp()
         order = {
             **data,
+            'MerchantID': MerchantID,
+            'RespondType': 'JSON',
             'TimeStamp': timestamp,
-            'Amt': int(data['Amt']),
+            'Version': 2.0,
+            'Amt': int(100),
             'MerchantOrderNo': timestamp,
+            'ItemDesc': 'yoyoy',
+            'ReturnURL': ReturnUrl,
+            'NotifyURL': NotifyUrl,
+            'CREDIT': 1,
+            # 'TimeStamp': timestamp,
+            # 'Amt': int(data['Amt']),
+            # 'MerchantOrderNo': timestamp,
         }
+        print('訂單資料：', data, '\n')
 
         # 將要加密的資料串接為字串
-        data_chain = gen_data_chain(order)
+        # data_chain = gen_data_chain(order)
+        # print('請求字串：', data_chain, '\n')
 
         # 進行 AES 加密
-        encrypted_data = aes_encrypt(data_chain)
+        # encrypted_data = aes_encrypt(data_chain)
+        # print('AES加密：', encrypted_data, '\n')
 
         # 進行 SHA256 加密
-        sha_encrypt = create_sha_encrypt(encrypted_data)
+        # sha_encrypt = create_sha_encrypt(encrypted_data)
+        # print('SHA256加密：', sha_encrypt, '\n')
 
         timestamp_int = int(timestamp)
         orders[timestamp_int] = order
-
-
-        request.session['sha_encrypt'] = sha_encrypt
-        request.session['encrypted_data'] = encrypted_data
+        print(orders)
         
         # 返回加密後的資料
-        print(encrypted_data)
         # return HttpResponse(sha_encrypt)
         # return redirect('paies:check_order', kwargs={'id': timestamp_int, 'sha_encrypt': sha_encrypt, 'encrypted_data': encrypted_data})
         return redirect('paies:check_order', timestamp_int)
@@ -64,12 +81,14 @@ def create_order(request):
     return HttpResponse('Method Not Allowed', status=405)
 
 def gen_data_chain(order):
-    return f"MerchantID={MerchantID}&TimeStamp={order['TimeStamp']}&Version={Version}&RespondType={RespondType}&MerchantOrderNo={order['MerchantOrderNo']}&Amt={order['Amt']}&NotifyURL={NotifyUrl}&ReturnURL={ReturnUrl}&ItemDesc={order['ItemDesc']}&Email={order['Email']}"
+    return f"MerchantID={order['MerchantID']}&TimeStamp={order['TimeStamp']}&Version={order['Version']}&RespondType={order['RespondType']}&MerchantOrderNo={order['MerchantOrderNo']}&Amt={order['Amt']}&NotifyURL={order['NotifyURL']}&ReturnURL={order['ReturnURL']}&ItemDesc={order['ItemDesc']}"
 
 def aes_encrypt(data):
     # 將密鑰和初始向量轉換為 bytes
-    key_bytes = HASHKEY.encode()
-    iv_bytes = HASHIV.encode()
+    key_bytes = HASHKEY.encode('utf-8')[:32]
+    iv_bytes = HASHIV.encode('utf-8')[:16]
+    # print(key_bytes)
+    # print(iv_bytes)
 
     # 創建 Cipher 物件，使用 AES 算法和 CBC 模式
     cipher = Cipher(algorithms.AES(key_bytes), modes.CBC(iv_bytes), backend=default_backend())
@@ -79,12 +98,15 @@ def aes_encrypt(data):
 
     # 計算填充所需的字節數
     padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(data.encode()) + padder.finalize()
+    padded_data = padder.update(data.encode('utf-8')) + padder.finalize()
     # 加密資料
     ciphertext = encryptor.update(padded_data) + encryptor.finalize()
 
     # 返回加密後的資料的十六進制表示形式
     return ciphertext.hex()
+# def aes_encrypt(data, key):
+#     cryptor = AES.new(key, AES.MODE_CBC, _IV)
+#     return cryptor.encrypt(data)
 
 def create_sha_encrypt(edata1):
     hash_string = f"HashKey={HASHKEY}&{edata1}&HashIV={HASHIV}"
@@ -93,37 +115,44 @@ def create_sha_encrypt(edata1):
     return sha256_hash.upper()
 
 # views.py
+@csrf_exempt
 def check_order(request, TimeStamp):
     # 從 orders 字典中獲取訂單信息
-    order = orders.get(TimeStamp, {})
-    email = order.get('Email', [''])[0]
-    item_desc = order.get('ItemDesc', [''])[0]
-    int_merchant_order_no = int(order.get('MerchantOrderNo'))
-    amt = order.get('Amt')
-    print(order)
+    # order = orders.get(TimeStamp, {})
+    # email = order.get('Email', [''])[0]
+    # item_desc = order.get('ItemDesc', [''])[0]
+    # int_merchant_order_no = int(order.get('MerchantOrderNo'))
+    # amt = order.get('Amt')
+    # 進行 AES 加密
     print(TimeStamp)
-    print(email)
-    print(int_merchant_order_no)
+    # timestamp = timezone.now().timestamp()
+    order = {
+        'MerchantID': MerchantID,
+        'RespondType': 'JSON',
+        'TimeStamp': TimeStamp,
+        'Version': 2.0,
+        'Amt': int(100),
+        'MerchantOrderNo': TimeStamp,
+        'ItemDesc': 'yoyoy',
+        'ReturnURL': ReturnUrl,
+        'NotifyURL': NotifyUrl,
+        'CREDIT': 1
+    }
 
-    sha_encrypt = request.session.get('sha_encrypt')
-    encrypted_data = request.session.get('encrypted_data')
+    # 將要加密的資料串接為字串
+    data_chain = gen_data_chain(order)
+    
+    encrypted_data = aes_encrypt(data_chain)
+
+    # 進行 SHA256 加密
+    sha_encrypt = create_sha_encrypt(encrypted_data)
     
     # 渲染訂單檢查頁面並傳遞相關數據
     return render(request, 'check.html', {
-        'title': 'Express',
-        'PayGateWay': PayGateWay,
-        'Version': Version,
-        'order': order,
         'MerchantID': MerchantID,
-        'NotifyUrl': NotifyUrl,
-        'ReturnUrl': ReturnUrl,
-        'encrypted_data': encrypted_data,
-        'sha_encrypt': sha_encrypt,
-        'email': email,
-        'item_desc': item_desc,
-        'TimeStamp': TimeStamp,
-        'MerchantOrderNo': int_merchant_order_no,
-        'Amt': amt
+        'TradeInfo': encrypted_data,
+        'TradeSha': sha_encrypt,
+        'Version': Version,
     })
 
 
@@ -138,11 +167,25 @@ import binascii
 #         return HttpResponse('Method Not Allowed', status=405)
 @csrf_exempt
 def newebpay_return(request):
-    print(request)
+    # print(request)
     if request.method == 'POST':
         # 在這裡處理從藍新回傳的數據
         # 處理完畢後，重定向到結帳成功頁面
-        return HttpResponse('success')
+        
+        return render(request, 'success.html')
+    else:
+        # 如果是 GET 請求，可以根據需要進行其他處理
+        return HttpResponse("Method Not Allowed", status=405)
+
+@csrf_exempt
+def newebpay_notify(request):
+    # print('notify: ', request)
+    if request.method == 'POST':
+        # 在這裡處理從藍新回傳的數據
+        # 處理完畢後，重定向到結帳成功頁面
+        enc_data = request.POST.get('TradeInfo')
+        print('notify: ', enc_data)
+        return HttpResponse('Notify')
     else:
         # 如果是 GET 請求，可以根據需要進行其他處理
         return HttpResponse("Method Not Allowed", status=405)

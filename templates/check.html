@@ -7,19 +7,12 @@
   </head>
   <body>
     <div id="app">
-        <form action="{{ PayGateWay }}" method="post">
+        <form action="https://ccore.newebpay.com/MPG/mpg_gateway" method="post">
 
             <input type="text" name="MerchantID" value="{{ MerchantID }}" />
-            <input type="text" name="TradeSha" value="{{ sha_encrypt }}" />
-            <input type="text" name="TradeInfo" value="{{ encrypted_data }}" />
-            <input type="text" name="TimeStamp" value="{{ TimeStamp }}" />
+            <input type="text" name="TradeSha" value="{{ TradeSha }}" />
+            <input type="text" name="TradeInfo" value="{{ TradeInfo }}" />
             <input type="text" name="Version" value="{{ Version }}" />
-            <input type="text" name="NotifyUrl" value="{{ NotifyUrl }}" />
-            <input type="text" name="ReturnUrl" value="{{ ReturnUrl }}" />
-            <input type="text" name="MerchantOrderNo" value="{{ MerchantOrderNo }}" />
-            <input type="text" name="Amt" value="{{ Amt }}" />
-            <input type="text" name="ItemDesc" value="{{ item_desc }}" />
-            <input type="email" name="Email" value="{{ email }}" />
             <button type="submit">送出</button>
         </form>
     </div>

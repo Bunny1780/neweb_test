@@ -17,5 +17,5 @@ urlpatterns = [
     path('newebpays_return', views.newebpay_return, name='newebpay_return'),
     
     # 路由: /newebpay_notify
-    # path('newebpay_notify', views.newebpay_notify, name='newebpay_notify'),
+    path('newebpays_notify', views.newebpay_notify, name='newebpay_notify'),
 ]
